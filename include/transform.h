@@ -22,19 +22,17 @@ namespace mmc {
     public:
 
         transform(cv::Size window, cv::Size target);
-        cv::Mat* calc();
+        void calc(cv::OutputArray matrix);
         void updateRotateVector(float x, float y, float z);
 
     private:
         cv::Size2f windowSize;
         cv::Size2f targetSize;
-        cv::Mat output;
-        cv::Mat targetImg;
         float zMax = 1000.0f;
         float zMin = 100.0f;
-        float depth = 500.0f;
+        float depth = 800.0f;
         std::vector<Eigen::Vector3f> pts;
-        cv::Point2f *srcPt;
+        cv::Point2f srcPt[4];
         Eigen::Vector3f rotate;
         Eigen::Vector3f translate;
         Eigen::Matrix4f rotateMatrix;

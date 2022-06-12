@@ -5,4 +5,4 @@ set(CMAKE_CXX_STANDARD 14)
 
 add_executable(moving_mirror_controller src/main.cpp src/transform.cpp include/transform.h)
 
-target_link_libraries(moving_mirror_controller opencv_core opencv_imgproc opencv_highgui)
+target_link_libraries(moving_mirror_controller opencv_core opencv_imgproc opencv_highgui opencv_imgcodecs)

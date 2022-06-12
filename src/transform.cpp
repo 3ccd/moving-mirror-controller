@@ -13,6 +13,9 @@ namespace mmc{
         mat(3, 3) = 1;
     }
 
+    /*
+     * 回転行列を取得
+     */
     Eigen::MatrixXf getRotate(Eigen::Vector3f &vec){
         Eigen::Matrix3f tmpMat;
         tmpMat = Eigen::AngleAxisf(vec.x(), Eigen::Vector3f::UnitX())
@@ -23,6 +26,9 @@ namespace mmc{
         return mat;
     }
 
+    /*
+     * 平行移動行列を取得
+     */
     Eigen::MatrixXf getTranslate(Eigen::Vector3f &vec){
         Eigen::Matrix4f tmpMat;
         tmpMat <<
@@ -33,6 +39,9 @@ namespace mmc{
         return tmpMat;
     }
 
+    /*
+     * 正規化されたビューを取得
+     */
     Eigen::MatrixXf getNormalizeView(const float zMin, const float zMax, const float depth,
                                      const float width, const float height){
         Eigen::MatrixXf tmpMat;
@@ -41,6 +50,9 @@ namespace mmc{
         return tmpMat;
     }
 
+    /*
+     * 透視投影を取得
+     */
     Eigen::Matrix4f getPerspective(const float zMin, const float zMax){
         Eigen::Matrix4f tmpMat;
         float zMinTilde = zMin / zMax;
@@ -55,8 +67,6 @@ namespace mmc{
     }
 
     transform::transform(cv::Size window, cv::Size target) : windowSize(window), targetSize(target) {
-        output = cv::Mat(window, CV_8UC3, cv::Scalar(0,0,0));
-        targetImg = cv::Mat(target, CV_8UC3, cv::Scalar(255, 100, 255));
 
         float ptxh = (float)target.width / 2;
         float ptyh = (float)target.height / 2;
@@ -66,6 +76,13 @@ namespace mmc{
                 Eigen::Vector3f(     ptxh, -1 * ptyh, 0),
                 Eigen::Vector3f(     ptxh,      ptyh, 0)
         };
+
+        float tcx = (float)targetSize.width;
+        float tcy = (float)targetSize.height;
+        srcPt[0] = cv::Point2f(0.0f, 0.0f);
+        srcPt[1] = cv::Point2f(0.0f, tcy);
+        srcPt[2] = cv::Point2f(tcx, tcy);
+        srcPt[3] = cv::Point2f(tcx, 0.0f);
 
         rotate = Eigen::Vector3f(DEG2RAD(34.0), DEG2RAD(43.0), DEG2RAD(0.0));
         translate = Eigen::Vector3f(0.0f, 0.0f, -300.0f);
@@ -81,37 +98,27 @@ namespace mmc{
         rotateMatrix = getRotate(rotate);
     }
 
-    cv::Mat* transform::calc(){
+    void transform::calc(cv::OutputArray matrix){
         std::vector<Eigen::Vector3f> transPts = {};
+        cv::Mat mat = matrix.getMat();
 
         for (auto & pt : pts){
-            Eigen::Vector4f tmpVec = translateMatrix * rotateMatrix * pt.homogeneous();
-            tmpVec = perspectiveMatrix * normalizeMatrix * tmpVec;
+            Eigen::Vector4f tmpVec = translateMatrix * rotateMatrix * pt.homogeneous();     // 三次元空間での回転と平行移動
+            tmpVec = perspectiveMatrix * normalizeMatrix * tmpVec;      // 投影空間の正規化と透視投影
             transPts.insert(transPts.end(), Eigen::Vector3f(tmpVec.x(), tmpVec.y(), tmpVec.z()));
         }
 
-        float tcx = (float)targetImg.cols;
-        float tcy = (float)targetImg.rows;
-        cv::Point2f src[4] = {
-                cv::Point2f(0.0f, 0.0f),
-                cv::Point2f(0.0f, tcy),
-                cv::Point2f(tcx, tcy),
-                cv::Point2f(tcx, 0.0f)
-        };
-        srcPt = src;
-
-        float xOffset = float(output.cols) / 2;
-        float yOffset = float(output.rows) / 2;
+        float xOffset = float(windowSize.width) / 2;
+        float yOffset = float(windowSize.height) / 2;
         cv::Point2f dstPt[4];
-        for (int i = 0; i < 4; i++){
-            dstPt[i] = cv::Point2f((transPts[i].x() / transPts[i].z() * xOffset) + xOffset ,
+        for (int i = 0; i < 4; i++) {
+            dstPt[i] = cv::Point2f((transPts[i].x() / transPts[i].z() * xOffset) + xOffset,
                                    (transPts[i].y() / transPts[i].z() * yOffset) + yOffset);
         }
 
         cv::Mat perMat = cv::getPerspectiveTransform(srcPt, dstPt);
-        cv::warpPerspective(targetImg, output, perMat, windowSize);
+        perMat.copyTo(matrix);
 
-        return &output;
     }
 
 }
